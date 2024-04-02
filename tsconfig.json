@@ -1,0 +1,10 @@
+{
+    "extends": "@tsconfig/node20/tsconfig.json",
+    "include": [
+        "./src/**/*"
+    ],
+    "exclude": [ // exclude is overriden by configs inheriting, avoid excluding elsewhere (source: https://www.typescriptlang.org/tsconfig#extends)
+        "node_modules",
+        "**/node_modules"
+    ]
+}

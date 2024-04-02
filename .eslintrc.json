@@ -1,0 +1,270 @@
+{
+  "root": true,
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": [
+      "./tsconfig.json"
+    ]
+  },
+  "plugins": [
+    "@typescript-eslint"
+  ],
+  "rules": {
+    "indent": [
+      "error",
+      4,
+      {
+        "ignoredNodes": [
+          "PropertyDefinition"
+        ]
+      }
+    ],
+    "quotes": [
+      "error",
+      "single"
+    ],
+    "semi": [
+      "error",
+      "always"
+    ],
+    "no-trailing-spaces": [
+      "error"
+    ],
+    "no-mixed-spaces-and-tabs": "error",
+    "no-multi-spaces": "error",
+    "no-irregular-whitespace": "error",
+    "block-spacing": [
+      "error",
+      "always"
+    ],
+    "space-in-parens": [
+      "error",
+      "never"
+    ],
+    "space-before-blocks": [
+      "error",
+      "always"
+    ],
+    "semi-spacing": [
+      "error",
+      {
+        "before": false,
+        "after": false
+      }
+    ],
+    "space-infix-ops": [
+      "error",
+      {
+        "int32Hint": false
+      }
+    ],
+    "space-unary-ops": [
+      2,
+      {
+        "words": true,
+        "nonwords": false
+      }
+    ],
+    "spaced-comment": [
+      "error",
+      "always"
+    ],
+    "function-call-argument-newline": [
+      "error",
+      "consistent"
+    ],
+    "func-call-spacing": [
+      "error",
+      "never"
+    ],
+    "nonblock-statement-body-position": [
+      "error",
+      "any"
+    ],
+    "comma-spacing": [
+      "error",
+      {
+        "before": false,
+        "after": true
+      }
+    ],
+    "arrow-parens": [
+      "error",
+      "always"
+    ],
+    "object-curly-spacing": [
+      "error",
+      "always"
+    ],
+    "arrow-spacing": [
+      "error",
+      {
+        "before": true,
+        "after": true
+      }
+    ],
+    "no-unreachable": "error",
+    "arrow-body-style": [
+      "error",
+      "always"
+    ],
+    "padding-line-between-statements": [
+      "error",
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "return"
+      },
+      {
+        "blankLine": "always",
+        "prev": "import",
+        "next": "*"
+      },
+      {
+        "blankLine": "always",
+        "prev": [
+          "if",
+          "for",
+          "while"
+        ],
+        "next": "*"
+      },
+      {
+        "blankLine": "never",
+        "prev": "import",
+        "next": "import"
+      }
+    ],
+    "@typescript-eslint/no-inferrable-types": "off",
+    "keyword-spacing": [
+      "error",
+      {
+        "before": true,
+        "after": true
+      }
+    ],
+    "brace-style": [
+      "error",
+      "1tbs",
+      {
+        "allowSingleLine": true
+      }
+    ],
+    "no-tabs": [
+      "error",
+      {
+        "allowIndentationTabs": true
+      }
+    ],
+    "eol-last": [
+      "error",
+      "always"
+    ],
+    "camelcase": "off",
+    "@typescript-eslint/interface-name-prefix": [
+      "off"
+    ],
+    "@typescript-eslint/naming-convention": [
+      "warn",
+      {
+        "selector": "default",
+        "format": [
+          "camelCase"
+        ]
+      },
+      {
+        "selector": [
+          "typeLike"
+        ],
+        "format": [
+          "PascalCase"
+        ]
+      },
+      {
+        "selector": [
+          "enumMember"
+        ],
+        "format": [
+          "PascalCase",
+          "UPPER_CASE"
+        ]
+      },
+      {
+        "selector": [
+          "objectLiteralProperty"
+        ], // ex: joi schema => camelCase, Record<MyEnum,string> => same as enum (up or pascal)
+        "format": [
+          "camelCase",
+          "UPPER_CASE",
+          "PascalCase"
+        ]
+      },
+      {
+        "selector": [
+          "classProperty"
+        ],
+        "format": [
+          "camelCase"
+        ],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": [
+          "variable"
+        ],
+        "format": [
+          "camelCase",
+          "UPPER_CASE"
+        ],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "import",
+        "format": [
+          "camelCase",
+          "PascalCase"
+        ],
+        "leadingUnderscore": "allow"
+      }
+    ],
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allowAfterThis": true
+      }
+    ],
+    "no-async-promise-executor": "error",
+    "no-inner-declarations": "off",
+    "require-atomic-updates": "error",
+    "callback-return": "error",
+    "handle-callback-err": "error",
+    "@typescript-eslint/explicit-function-return-type": "error",
+    "@typescript-eslint/type-annotation-spacing": "error",
+    "@typescript-eslint/no-empty-function": "error",
+    "@typescript-eslint/no-var-requires": "error",
+    "@typescript-eslint/no-use-before-define": "error",
+    "@typescript-eslint/no-namespace": "off",
+    "no-prototype-builtins": "error",
+    "@typescript-eslint/consistent-type-assertions": "error",
+    "guard-for-in": "error",
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "error",
+    "no-param-reassign": "error",
+    "no-empty": "error",
+    "no-useless-escape": "error",
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      {
+        "fixStyle": "separate-type-imports"
+      }
+    ]
+  },
+  "ignorePatterns": [
+    "src/**/*.test.ts",
+    "src/frontend/generated/*"
+  ]
+}

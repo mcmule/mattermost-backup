@@ -13,7 +13,7 @@ export function sleep(ms: number): Promise<void> {
 }
 
 const mattermost: AxiosInstance = axios.create({
-    baseURL:'https://chat.lylo.tv',
+    baseURL: process.env.ROOT,
     headers:{ 'content-type': 'application/json' },
 });
 

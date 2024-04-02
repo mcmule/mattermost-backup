@@ -168,9 +168,25 @@ async function main(): Promise<void> {
         if (!existsSync('./out'))
             mkdirSync('out');
 
-        const filename: string = `./out/mm-chan-${simplifyString(channel.display_name || channel.name)}.json`;
+        let channel_name: string = channel.display_name || channel.name;
+
+        if (channelUserIds.length < 3 && channel.name.includes(channelUserIds[0])) {
+          for (const uId of channelUserIds) {
+            const user = userForId.get(uId);
+            if (user && user.email !== login && user.username) {
+              channel_name = user.username;
+              break;
+            }
+          }
+
+          if (!channel_name) {
+            channel_name = userForId.get(channelUserIds[0])?.username || channel_name;
+          }
+        }
+
+        const filename: string = `./out/mm-chan-${simplifyString(channel_name)}.json`;
         writeFileSync(filename, JSON.stringify(output, null, 2));
-        const textFilename: string = `./out/mm-chan-${simplifyString(channel.display_name || channel.name)}.txt`;
+        const textFilename: string = `./out/mm-chan-${simplifyString(channel_name)}.txt`;
         writeFileSync(textFilename, textOutput);
 
         await sleep(5000);

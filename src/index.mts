@@ -35,6 +35,24 @@ function simplifyString(v: string): string {
         .replace(/ /gmi, '_');
 }
 
+/**
+ * For direct messages/grouped discussions, `display_name`
+ *  may contain a list of usernames (comma separated) but
+ *  most of the time, it looks empty.
+ * In this case, we can fallback to channel's `name` that is
+ *  a list of user ids (w. __ separator)
+ */
+function directMessageChannelName(currentUserId: string, channelName: string, memberIds: string[], userForId: Map<string, IUser>): string | undefined {
+    if (!channelName.includes(currentUserId))
+        return undefined; // not a DM channel
+
+    const usernames: string[] = memberIds
+        .filter((userId: string): boolean => { return userId !== currentUserId; })
+        .map((userId: string): string => { return userForId.get(userId)?.username || 'n-a'; });
+
+    return usernames.join('_');
+}
+
 async function main(): Promise<void> {
     const login: string = process.env.USER_EMAIL as string;
     const pwd: string = process.env.USER_PWD as string;
@@ -168,25 +186,13 @@ async function main(): Promise<void> {
         if (!existsSync('./out'))
             mkdirSync('out');
 
-        let channel_name: string = channel.display_name || channel.name;
+        const channelName: string = directMessageChannelName(userId, channel.name, channelUserIds, userForId)
+                                    || channel.display_name
+                                    || channel.name;
 
-        if (channelUserIds.length < 3 && channel.name.includes(channelUserIds[0])) {
-          for (const uId of channelUserIds) {
-            const user = userForId.get(uId);
-            if (user && user.email !== login && user.username) {
-              channel_name = user.username;
-              break;
-            }
-          }
-
-          if (!channel_name) {
-            channel_name = userForId.get(channelUserIds[0])?.username || channel_name;
-          }
-        }
-
-        const filename: string = `./out/mm-chan-${simplifyString(channel_name)}.json`;
+        const filename: string = `./out/mm-chan-${simplifyString(channelName)}.json`;
         writeFileSync(filename, JSON.stringify(output, null, 2));
-        const textFilename: string = `./out/mm-chan-${simplifyString(channel_name)}.txt`;
+        const textFilename: string = `./out/mm-chan-${simplifyString(channelName)}.txt`;
         writeFileSync(textFilename, textOutput);
 
         await sleep(5000);

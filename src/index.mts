@@ -35,6 +35,48 @@ function simplifyString(v: string): string {
         .replace(/ /gmi, '_');
 }
 
+function extractMissingUserIds(posts: IPost[], knownUsers: Map<string, IUser>): string[] {
+    const channelUserIds: string[] = _(posts).map((p) => { return p.user_id; }).uniq().value();
+
+    return _.difference(channelUserIds, Array.from(knownUsers.keys()));
+}
+
+/**
+ * @warning not pure: mutates knownUsers map passed as arg.
+ */
+async function consolidateKnownUsers(newPosts: IPost[], knownUsers: Map<string, IUser>): Promise<void> {
+    const missingUserIds: string[] = extractMissingUserIds(newPosts, knownUsers);
+    if (missingUserIds.length === 0) return;
+
+    console.info(`\tretrieving ${missingUserIds.length} new users`);
+    const usersResponse: AxiosResponse<IUser[]> = await mattermost.post(
+        '/api/v4/users/ids',
+        missingUserIds
+    );
+    const missingUsers: IUser[] = usersResponse.data;
+    missingUsers.forEach((user: IUser): void => {
+        knownUsers.set(user.id, user);
+    });
+}
+
+/**
+ * For direct messages/grouped discussions, `display_name`
+ *  may contain a list of usernames (comma separated) but
+ *  most of the time, it looks empty.
+ * In this case, we can fallback to channel's `name` that is
+ *  a list of user ids (w. __ separator)
+ */
+function directMessageChannelName(currentUserId: string, channelName: string, memberIds: string[], userForId: Map<string, IUser>): string | undefined {
+    if (!channelName.includes(currentUserId))
+        return undefined; // not a DM channel
+
+    const usernames: string[] = memberIds
+        .filter((userId: string): boolean => { return userId !== currentUserId; })
+        .map((userId: string): string => { return userForId.get(userId)?.username || 'n-a'; });
+
+    return usernames.join('_');
+}
+
 async function main(): Promise<void> {
     const login: string = process.env.USER_EMAIL as string;
     const pwd: string = process.env.USER_PWD as string;
@@ -53,16 +95,30 @@ async function main(): Promise<void> {
     // eslint-disable-next-line require-atomic-updates
     mattermost.defaults.headers.common['Authorization'] = 'Bearer ' + token;
 
+    // Fetch user channels
+    console.info('Enumerating user channels accross all teams');
+    const channels: IBasicChannel[] = [];
 
-    const channelsResponse: AxiosResponse<IBasicChannel[]> = await mattermost.get(
-        `/api/v4/users/${userId}/channel_members`
-    );
-    const channels: IBasicChannel[] = channelsResponse.data;
-    console.log(`# Found ${channels.length} channels, with a total of ${_(channels).map((c) => { return c.msg_count; }).sum()} messages`);
+    {
+        let latestChannels: IBasicChannel[] = [];
+        let currentPage: number = 0;
+        do {
+            const channelsResponse: AxiosResponse<IBasicChannel[]> = await mattermost.get(
+                `/api/v4/users/${userId}/channel_members?page=${currentPage}`
+            );
+            latestChannels = channelsResponse.data;
+            channels.push(...latestChannels);
+            currentPage++;
+        } while (latestChannels.length > 0);
 
-    const userForId = new Map<string, IUser>();// users.map((u) => { return [u.id, u]; }));
+        console.log(`# Found ${channels.length} channels, with a total of ${_(channels).map((c) => { return c.msg_count; }).sum()} messages`);
+    }
 
-    let channelIndex: number = 1;
+    const userForId = new Map<string, IUser>();
+
+    // Fetch all messages for all our channels
+
+    let channelIndex: number = 1; // only for display purpose, no role regarding algo's logic
     for (const currentChannel of channels) {
         const channelResponse: AxiosResponse<IChannel> = await mattermost.get(
             `/api/v4/channels/${currentChannel.channel_id}`
@@ -71,34 +127,24 @@ async function main(): Promise<void> {
         console.log(`# Processing channel (${channelIndex++}/${channels.length})`, channel.display_name, channel.name);
 
         const thePosts: IPost[] = [];
-        let latestResponse: IPosts;
-        let currentPage: number = 0;
-        // Fetch all posts using pagination
-        do {
-            const postsResponse: AxiosResponse<IPosts> = await mattermost.get(
-                `/api/v4/channels/${channel.id}/posts?page=${currentPage}&per_page=200`
-            );
-            latestResponse = postsResponse.data;
-            thePosts.push(...Object.values(latestResponse.posts));
+        {
+            let latestResponse: IPosts;
+            let currentPage: number = 0;
+            // Fetch all posts using pagination
+            do {
+                const postsResponse: AxiosResponse<IPosts> = await mattermost.get(
+                    `/api/v4/channels/${channel.id}/posts?page=${currentPage}&per_page=200`
+                );
+                latestResponse = postsResponse.data;
+                thePosts.push(...Object.values(latestResponse.posts));
 
-            currentPage++;
-        } while (latestResponse.order.length > 0);
+                currentPage++;
+            } while (latestResponse.order.length > 0);
+        }
 
         console.log(`\tgot ${thePosts.length} messages`);
 
-        const channelUserIds: string[] = _(thePosts).map((p) => { return p.user_id; }).uniq().value();
-        const missingUserIds = _.difference(channelUserIds, Array.from(userForId.keys()));
-
-        if (missingUserIds.length > 0) {
-            const usersResponse: AxiosResponse<IUser[]> = await mattermost.post(
-                '/api/v4/users/ids',
-                missingUserIds
-            );
-            const missingUsers: IUser[] = usersResponse.data;
-            missingUsers.forEach((user: IUser): void => {
-                userForId.set(user.id, user);
-            });
-        }
+        await consolidateKnownUsers(thePosts, userForId);
 
         const allPosts: IPost [] = thePosts;
         allPosts.sort((left: IPost, right: IPost): number => { return left.create_at - right.create_at; });
@@ -129,6 +175,11 @@ async function main(): Promise<void> {
             }
         }
 
+        const channelUserIds: string[ ] = _(thePosts)
+            .map((p) => { return p.user_id; })
+            .uniq()
+            .value();
+
         const output: OFile = {
             channel: {
                 dispName:channel.display_name,
@@ -136,7 +187,7 @@ async function main(): Promise<void> {
                 name:channel.name,
                 id:channel.id,
             },
-            users:channelUserIds.map((uId: string): OUser => {
+            users: channelUserIds.map((uId: string): OUser => {
                 const user = userForId.get(uId)!;
 
                 return {
@@ -168,9 +219,13 @@ async function main(): Promise<void> {
         if (!existsSync('./out'))
             mkdirSync('out');
 
-        const filename: string = `./out/mm-chan-${simplifyString(channel.display_name || channel.name)}.json`;
+        const channelName: string = directMessageChannelName(userId, channel.name, channelUserIds, userForId)
+                                    || channel.display_name
+                                    || channel.name;
+
+        const filename: string = `./out/mm-chan-${simplifyString(channelName)}.json`;
         writeFileSync(filename, JSON.stringify(output, null, 2));
-        const textFilename: string = `./out/mm-chan-${simplifyString(channel.display_name || channel.name)}.txt`;
+        const textFilename: string = `./out/mm-chan-${simplifyString(channelName)}.txt`;
         writeFileSync(textFilename, textOutput);
 
         await sleep(5000);
